@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>データ抽出・連携業務 ─ SQL スキル ポートフォリオ</title>
+<meta name="description" content="退社職員のPC情報を3テーブルJOINで抽出し、支社ごとにCSV出力する業務デモ。SQLite/WASMでブラウザ内動作。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+<link rel="stylesheet" href="css/common.css">
+<link rel="stylesheet" href="css/chat.css">
+<style>
+  table.result td.hl { background: #d4edda; }
+  .csv-preview {
+    background: #1a2332;
+    color: #d9e6e1;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 14px 16px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin-top: 10px;
+    line-height: 1.5;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">メインコンテンツへ</a>
+<div class="wrap">
+  <nav class="nav-home"><a href="index.html">&larr; SQL スキル ポートフォリオ</a></nav>
+  <header>
+    <div class="kicker">Data Extract &amp; Export &middot; Demo</div>
+    <h1>データ抽出・連携業務</h1>
+    <div class="sub">
+      <span class="badge">SELECT</span>
+      <span class="badge">JOIN</span>
+      <span class="badge">GROUP BY</span>
+      <span class="badge">CSV / Excel連携</span>
+    </div>
+  </header>
+  <main id="main">
+
+  <!-- 上司とのやりとり -->
+  <div class="chat">
+    <div class="chat-row boss">
+      <div class="chat-icon boss">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)"/></svg>
+      </div>
+      <div>
+        <div class="chat-label">上司</div>
+        <div class="chat-bubble">
+          今月退社する営業職員のPCを、各支社に連携するために<b>Excel化</b>してほしい。
+        </div>
+      </div>
+    </div>
+    <div class="chat-row me">
+      <div class="chat-icon me">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)"/></svg>
+      </div>
+      <div>
+        <div class="chat-label">わたし</div>
+        <div class="chat-bubble">
+          承知しました。職員マスタと配布テーブル・端末マスタを突き合わせて、<b>支社ごとに整理</b>して出しますね。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 業務フロー -->
+  <div class="workflow">
+    <h3>&#9656; 業務の進め方（SQLの処理）</h3>
+    <div class="wf-steps">
+      <div class="wf-step">
+        <div class="wf-num">1</div>
+        <div class="wf-body"><b>退社する職員を抽出する</b>（職員マスタから退社日が今月のデータを SELECT）</div>
+      </div>
+      <div class="wf-connector"><div class="wf-line"></div></div>
+      <div class="wf-step">
+        <div class="wf-num">2</div>
+        <div class="wf-body"><b>配布中の端末情報を結合する</b>（職員マスタ → 配布テーブル → 端末マスタ を JOIN。返却日 IS NULL で現在配布中のみ）</div>
+      </div>
+      <div class="wf-connector"><div class="wf-line"></div></div>
+      <div class="wf-step">
+        <div class="wf-num">3</div>
+        <div class="wf-body"><b>支社ごとに整理する</b>（支社で GROUP BY・並べ替え）</div>
+      </div>
+      <div class="wf-connector"><div class="wf-line"></div></div>
+      <div class="wf-step">
+        <div class="wf-num">4</div>
+        <div class="wf-body"><b>結果をExcelに出力</b>（抽出結果をCSVファイルとしてダウンロード）</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="status">&#9203; データベースを初期化しています...</div>
+
+  <!-- STEP 1 -->
+  <h2 class="section-title">&#9656; STEP 1 ─ 今月退社する職員を抽出</h2>
+  <div class="controls">
+    <button class="primary" id="btn1" disabled>① 退社対象者を抽出</button>
+  </div>
+  <pre><span class="cmt">-- 退社日が今月の職員を職員マスタから抽出する</span>
+<span class="kw">SELECT</span> 職員ID, 氏名, 所属部署, 支社, 退社日
+<span class="kw">FROM</span>   職員マスタ
+<span class="kw">WHERE</span>  退社日 <span class="kw">BETWEEN</span> <span class="str">'<span id="monthStart"></span>'</span> <span class="kw">AND</span> <span class="str">'<span id="monthEnd"></span>'</span>;</pre>
+  <div class="step-result" id="result1"></div>
+
+  <!-- STEP 2 -->
+  <h2 class="section-title">&#9656; STEP 2 ─ 配布中の端末情報をJOINで結合</h2>
+  <div class="controls">
+    <button class="primary" id="btn2" disabled>② 端末情報を結合（3テーブルJOIN）</button>
+  </div>
+  <pre><span class="cmt">-- 退社職員に現在配布中の端末情報を結合（3テーブルJOIN）</span>
+<span class="kw">SELECT</span> e.職員ID, e.氏名, e.所属部署, e.支社,
+       t.端末種別, t.機種, t.シリアル番号
+<span class="kw">FROM</span>   職員マスタ e
+<span class="kw">JOIN</span>   配布テーブル d <span class="kw">ON</span> e.職員ID = d.職員ID
+<span class="kw">JOIN</span>   端末マスタ t  <span class="kw">ON</span> d.端末ID = t.端末ID
+<span class="kw">WHERE</span>  e.退社日 <span class="kw">BETWEEN</span> <span class="str">'...'</span> <span class="kw">AND</span> <span class="str">'...'</span>
+  <span class="kw">AND</span>  d.返却日 <span class="kw">IS NULL</span>;          <span class="cmt">-- 現在配布中のみ</span></pre>
+  <div class="step-result" id="result2"></div>
+
+  <!-- STEP 3 -->
+  <h2 class="section-title">&#9656; STEP 3 ─ 支社ごとに整理</h2>
+  <div class="controls">
+    <button class="gold" id="btn3" disabled>③ 支社ごとに集計・並べ替え</button>
+  </div>
+  <pre><span class="cmt">-- 支社ごとの台数を集計</span>
+<span class="kw">SELECT</span> e.支社, <span class="kw">COUNT</span>(t.端末ID) <span class="kw">AS</span> 端末台数
+<span class="kw">FROM</span>   職員マスタ e
+<span class="kw">JOIN</span>   配布テーブル d <span class="kw">ON</span> e.職員ID = d.職員ID
+<span class="kw">JOIN</span>   端末マスタ t  <span class="kw">ON</span> d.端末ID = t.端末ID
+<span class="kw">WHERE</span>  e.退社日 <span class="kw">BETWEEN</span> <span class="str">'...'</span> <span class="kw">AND</span> <span class="str">'...'</span>
+  <span class="kw">AND</span>  d.返却日 <span class="kw">IS NULL</span>
+<span class="kw">GROUP BY</span> e.支社
+<span class="kw">ORDER BY</span> 端末台数 <span class="kw">DESC</span>;</pre>
+  <div class="step-result" id="result3"></div>
+
+  <!-- STEP 4 -->
+  <h2 class="section-title">&#9656; STEP 4 ─ CSV（Excel）ファイルに出力</h2>
+  <div class="controls">
+    <button class="green" id="btn4" disabled>④ CSVをダウンロード</button>
+    <button id="btnReset" disabled>リセット</button>
+  </div>
+  <div class="step-result" id="result4"></div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <!-- 解説 -->
+  <h2 class="section-title">&#9656; 解説</h2>
+  <div class="explain">
+    <h3>このデモで使ったSQLの要素</h3>
+    <ul>
+      <li><b>WHERE + BETWEEN</b>: 日付範囲で対象を絞り込む。退社日が「今月」のデータを抽出。</li>
+      <li><b>3テーブル JOIN</b>: 職員マスタ → 配布テーブル → 端末マスタ を職員ID・端末IDで紐づけて結合。</li>
+      <li><b>返却日 IS NULL</b>: 配布テーブルには過去の配布履歴も残っているため、「現在配布中」のデータだけに絞り込む条件。これがないと返却済みの古い端末まで出てしまう。</li>
+      <li><b>GROUP BY + COUNT</b>: 支社ごとにグループ化し、各支社の端末台数を集計する。</li>
+      <li><b>ORDER BY</b>: 台数の多い支社順に並べ替え。連携先への情報整理に必要。</li>
+      <li><b>CSV出力</b>: SQL結果をカンマ区切りテキストに変換し、Excelで開ける形式でダウンロード。BOM付きUTF-8で日本語の文字化けを防止。</li>
+    </ul>
+  </div>
+
+  <!-- インデックスのエピソード -->
+  <h2 class="section-title">&#9656; 補足 ─ この業務で学んだチューニング</h2>
+
+  <div class="chat">
+    <div class="chat-row me">
+      <div class="chat-icon me">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)"/></svg>
+      </div>
+      <div>
+        <div class="chat-label">わたし</div>
+        <div class="chat-bubble">
+          職員データの検索時に、<b>なんか重い</b>んですけど…
+        </div>
+      </div>
+    </div>
+    <div class="chat-row boss">
+      <div class="chat-icon boss">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)"/></svg>
+      </div>
+      <div>
+        <div class="chat-label">上司</div>
+        <div class="chat-bubble">
+          アクセスするデータが大きいからね。<br>検索条件のカラムに<b>インデックス</b>つけてみて。巻末の索引と同じで、DBが目的のデータに直接たどり着けるようになるよ。
+        </div>
+      </div>
+    </div>
+    <div class="chat-row me">
+      <div class="chat-icon me">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)"/></svg>
+      </div>
+      <div>
+        <div class="chat-label">わたし</div>
+        <div class="chat-bubble">
+          やってみます。どれくらい変わるか計測してみますね。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="explain">
+    <h3>インデックスの効果を実測する</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:10px;">
+      上の業務と同じ構造の <b>職員マスタ（10万件）</b>を用意し、所属部署で検索する処理を<br>
+      インデックスなし / ありで実測します。ボタンを押すたびにブラウザ上で本物のSQLが実行された<b>実測値</b>です。
+    </p>
+  </div>
+
+  <div class="controls" style="margin-top:14px;">
+    <button class="primary" id="idxRunSlow" disabled>インデックスなしで検索</button>
+    <button class="green" id="idxCreate" disabled>インデックスを作成</button>
+    <button class="primary" id="idxRunFast" disabled>インデックスありで検索</button>
+  </div>
+
+  <pre><span class="cmt">-- 検索クエリ（どちらも同じ）</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> 職員マスタ_large <span class="kw">WHERE</span> 所属部署 = <span class="str">'D0457'</span>;
+
+<span class="cmt">-- 上司のアドバイスで追加したインデックス</span>
+<span class="kw">CREATE INDEX</span> idx_busho <span class="kw">ON</span> 職員マスタ_large(所属部署);</pre>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px;">
+    <div class="card" style="border-top:4px solid var(--accent);">
+      <span style="color:var(--accent);font-family:var(--mono);font-size:11px;letter-spacing:1px;">&#9679; WITHOUT INDEX</span>
+      <h3>インデックスなし</h3>
+      <div id="idxTimeSlow" style="font-family:var(--mono);font-size:38px;font-weight:700;color:var(--accent);margin:10px 0 2px;"><span style="font-size:20px;color:#bbb;">未計測</span></div>
+      <div id="idxRowsSlow" style="font-size:12px;color:#777;font-family:var(--mono);">&nbsp;</div>
+      <div style="height:8px;background:#eee;border-radius:4px;margin-top:12px;overflow:hidden;"><div id="idxBarSlow" style="height:100%;width:0;transition:width 0.6s;background:var(--accent);"></div></div>
+    </div>
+    <div class="card" style="border-top:4px solid var(--accent2);">
+      <span style="color:var(--accent2);font-family:var(--mono);font-size:11px;letter-spacing:1px;">&#9679; WITH INDEX</span>
+      <h3>インデックスあり</h3>
+      <div id="idxTimeFast" style="font-family:var(--mono);font-size:38px;font-weight:700;color:var(--accent2);margin:10px 0 2px;"><span style="font-size:20px;color:#bbb;">未計測</span></div>
+      <div id="idxRowsFast" style="font-size:12px;color:#777;font-family:var(--mono);">&nbsp;</div>
+      <div style="height:8px;background:#eee;border-radius:4px;margin-top:12px;overflow:hidden;"><div id="idxBarFast" style="height:100%;width:0;transition:width 0.6s;background:var(--accent2);"></div></div>
+    </div>
+  </div>
+
+  <div class="verdict" id="idxVerdict"></div>
+
+  <div class="speaker">
+    <h3>&#9656; メモ</h3>
+    「前職では、退社者の端末引き上げリストや、部署異動に伴う機器再配置のデータ抽出を日常的に行っていました。職員マスタ・配布テーブル・端末マスタの3テーブルをJOINし、返却日 IS NULL で現在配布中のデータだけに絞り込んで抽出する ─ このパターンを繰り返し使っていました。その中で、データ量が増えてクエリが遅くなった際に、上司から検索カラムへのインデックス作成をアドバイスされ、実際に大幅な改善を経験しました。チューニングという言葉は後から知りましたが、現場での体験がきっかけです。」
+  </div>
+
+  </main>
+  <footer>
+    Built with sql.js (SQLite/WASM) &middot; 全処理はブラウザ内で実行 &middot; データはサンプル(自動生成)
+  </footer>
+</div>
+
+<script type="module" src="js/tuning/controller.js"></script>
+</body>
+</html>

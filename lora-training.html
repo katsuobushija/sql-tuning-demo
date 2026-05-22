@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI画像生成 LoRA学習環境｜スキル ポートフォリオ</title>
+<meta name="description" content="Stable Diffusionモデルのファインチューニング環境。kohya_ss (sd-scripts) を使ったLoRA学習の構築と運用。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/common.css">
+</head>
+<body>
+<a href="#main" class="skip-link">メインコンテンツへ</a>
+<div class="wrap">
+  <nav class="nav-home"><a href="index.html">&larr; Portfolio Top</a></nav>
+  <header>
+    <div class="kicker">AI / Machine Learning</div>
+    <h1>AI画像生成 LoRA学習環境</h1>
+    <div class="sub">
+      <span class="badge">Python</span>
+      <span class="badge">PyTorch</span>
+      <span class="badge">LoRA</span>
+      Stable Diffusionモデルのファインチューニング環境を構築・運用。
+    </div>
+  </header>
+
+  <main id="main">
+
+    <div class="intro">
+      Stable Diffusion をはじめとする画像生成AIモデルを、自分の目的に合わせてファインチューニング（追加学習）するための環境です。<b>kohya_ss (sd-scripts)</b> をベースに、Python仮想環境・GPU設定・学習パラメータの調整まで一通り構築しています。
+    </div>
+
+    <h2 class="section-title">&#9656; LoRAとは</h2>
+    <div class="explain">
+      <h3>Low-Rank Adaptation</h3>
+      <ul>
+        <li><b>LoRA (Low-Rank Adaptation)</b> は、大規模モデルの全パラメータを書き換えずに、少数のアダプタ層だけを追加学習する手法</li>
+        <li>フル・ファインチューニングと比べてVRAM消費が少なく、学習時間も短い</li>
+        <li>出力されるファイルも数十MB程度と軽量で、モデルの差し替えが容易</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title">&#9656; 環境構成</h2>
+    <div class="explain">
+      <h3>使用ツール・ライブラリ</h3>
+      <ul>
+        <li><b>Python 3.10</b> + venv による仮想環境管理</li>
+        <li><b>PyTorch 2.5</b>（CUDA 12.1 対応）でGPUアクセラレーション</li>
+        <li><b>kohya_ss (sd-scripts)</b>：LoRA / DreamBooth / ファインチューニング対応の学習スクリプト群</li>
+        <li><b>Hugging Face Diffusers / Transformers</b>：モデルの読み込みと推論</li>
+        <li><b>SafeTensors</b>：安全なモデルシリアライゼーション</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title">&#9656; 対応モデル</h2>
+    <div class="explain">
+      <h3>学習可能なベースモデル</h3>
+      <ul>
+        <li>Stable Diffusion 1.x / 2.x</li>
+        <li>SDXL（Stable Diffusion XL）</li>
+        <li>SD3 / SD3.5</li>
+        <li>FLUX.1</li>
+        <li>その他、kohya_ss が対応する各種モデル</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title">&#9656; 学習ワークフロー</h2>
+    <div class="explain">
+      <h3>LoRA学習の手順</h3>
+      <ul>
+        <li><b>1. 学習データの準備</b>：画像の収集・リサイズ・タグ付け</li>
+        <li><b>2. 設定ファイルの作成</b>：TOML形式でデータセット・学習パラメータを定義</li>
+        <li><b>3. 学習の実行</b>：train_network.py でLoRA学習を開始（GPU使用）</li>
+        <li><b>4. 生成・評価</b>：学習済みLoRAをモデルに適用して画像を生成、品質を評価</li>
+      </ul>
+    </div>
+
+  </main>
+
+  <footer>
+    kohya_ss (sd-scripts) はオープンソースソフトウェアです（Apache 2.0）
+  </footer>
+</div>
+</body>
+</html>

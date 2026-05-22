@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>要件定義から実装まで ─ SQL スキル ポートフォリオ</title>
+<meta name="description" content="社内DB構築プロジェクトの記録。要件定義・ヒアリング・テーブル設計・正規化・実装・運用まで一貫して担当。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/common.css">
+<link rel="stylesheet" href="css/chat.css">
+<style>
+  body { line-height: 1.75; }
+  header { padding: 18px 0 20px; }
+
+  /* Stage titles */
+  .stage-title { font-size: 13px; font-family: var(--mono); letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 40px 0 16px; padding-bottom: 6px; border-bottom: 1px solid var(--line); display:flex; align-items:center; gap:10px; }
+  .stage-num { background: var(--ink); color: var(--paper); width: 26px; height: 26px; border-radius: 50%; display:inline-flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+
+  /* Card overrides */
+  .card { border-radius: 6px; padding: 20px 22px; margin: 14px 0; }
+  .card h3 { font-size: 16px; color: var(--ink); }
+  .card p { font-size: 14px; margin-bottom: 8px; }
+  .card ul { margin: 8px 0 0 18px; font-size: 14px; }
+  .card li { margin-bottom: 7px; }
+  .card li b { color: var(--accent2); }
+
+  .hl { background: linear-gradient(transparent 60%, #f5e6a8 60%); font-weight: 700; }
+  .deliverable { font-family: var(--mono); font-size: 11px; color: var(--gold); letter-spacing:1px; margin-bottom:6px; }
+
+  /* Tags */
+  .tagline { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .chip { font-size:12px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:4px 12px; }
+  .chip.cat { background:#eef5f2; border-color: var(--accent2); color: var(--accent2); font-weight:700; }
+
+  /* ERD */
+  .erd { display:flex; flex-direction:column; gap:0; margin:14px 0; }
+  .tbl { background:#fff; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .tbl-head { background: var(--ink); color: var(--paper); font-family: var(--mono); font-size:13px; padding:8px 14px; letter-spacing:1px; }
+  .tbl-body { padding: 4px 0; }
+  .col { font-size:13px; padding:5px 14px; border-bottom:1px dotted var(--line); display:flex; justify-content:space-between; }
+  .col:last-child { border-bottom:none; }
+  .col .key { color: var(--accent); font-family:var(--mono); font-size:11px; }
+  .col .fk { color: var(--accent2); font-family:var(--mono); font-size:11px; }
+  .rel { text-align:center; color: var(--accent2); font-family:var(--mono); font-size:13px; padding:8px 0; font-weight:700; }
+
+  /* Pre overrides */
+  pre { font-size: 12.5px; border-radius: 6px; line-height: 1.55; }
+  pre .fk { color: #8fd9c4; }
+
+  /* Result box */
+  .result-box { background: var(--ink); color: var(--paper); border-radius: 8px; padding: 24px; margin: 16px 0; }
+  .result-box h3 { color: var(--gold-light); font-size: 18px; margin-bottom: 10px; }
+  .result-box .stat { font-size: 30px; font-weight: 800; color: #fff; }
+  .result-box .stat span { font-size: 15px; font-weight: 400; color: var(--paper); }
+  .result-box ul { margin: 12px 0 0 18px; }
+  .result-box li { margin-bottom: 6px; font-size: 14px; }
+
+  .role-tag { display:inline-block; background: var(--accent2); color:#fff; font-size:11px; padding:2px 8px; border-radius:3px; font-family:var(--mono); margin-left:6px; }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">メインコンテンツへ</a>
+<div class="wrap">
+  <nav class="nav-home"><a href="index.html">&larr; SQL スキル ポートフォリオ</a></nav>
+
+  <header>
+    <div class="kicker">Requirements → Design → Implementation</div>
+    <h1>要件定義から実装まで<br>― 社内DB構築プロジェクト</h1>
+    <div class="sub">
+      <span class="badge">要件定義</span>
+      <span class="badge">テーブル設計</span>
+      <span class="badge">正規化</span>
+      <span class="badge">実装</span>
+      法人部門向けの「取引先サービス紹介DB」を、要望のヒアリングから設計・実装まで一貫して担当した記録です。
+    </div>
+  </header>
+  <main id="main">
+
+  <!-- STAGE 1: 発端 -->
+  <h2 class="stage-title"><span class="stage-num">1</span> 発端 ─ 部門からの要望</h2>
+
+  <div class="chat">
+    <div class="chat-row boss">
+      <div class="chat-icon boss">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)"/></svg>
+      </div>
+      <div>
+        <div class="chat-label">統括部長</div>
+        <div class="chat-bubble">
+          営業職員が、自分の担当以外の取引先のサービスも顧客に紹介できるようにしたい。
+          ホテル、小売、飲食…いろんな業種の取引先があるから、それを<b>横断で探せるDB</b>を作れないかな。
+        </div>
+      </div>
+    </div>
+    <div class="chat-row me">
+      <div class="chat-icon me">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)"/></svg>
+      </div>
+      <div>
+        <div class="chat-label">わたし</div>
+        <div class="chat-bubble">
+          承知しました。まず<b>どんな情報が必要か、現場の業務担当者にヒアリング</b>してから、設計に入ります。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p style="font-size:13px;color:#777;">
+      ※ 統括部長の要望を私の上司が受け、上司から私に設計・実装が任されました。統括部長案件を一任される形で担当しました。
+    </p>
+  </div>
+
+  <!-- STAGE 2: 要件定義 -->
+  <h2 class="stage-title"><span class="stage-num">2</span> 要件定義 ─ 何が必要かを引き出す</h2>
+
+  <div class="card">
+    <div class="deliverable">▸ ACTION ─ ヒアリング</div>
+    <h3>業務担当者への直接ヒアリング <span class="role-tag">私が担当</span></h3>
+    <p>「何が欲しいか」だけでなく、<b>何のために使うのか・どう使うのか</b>まで踏み込んで確認しました。私自身も業務側を理解していたため、ゼロから聞くのではなく<span class="hl">認識のすり合わせを中心に効率的に進行</span>。</p>
+    <ul>
+      <li>営業職員は「宴会・営業の場面で、他職域の取引先サービスを顧客に紹介したい」</li>
+      <li>紹介して利用されると、紹介元の営業職員の<b>実績(企業へのアピール)</b>になる</li>
+      <li>登録は1サービスずつ。更新は<b>担当営業職員自身</b>ができるようにしたい</li>
+      <li>担当営業に<b>直接連絡できるフォーム</b>が欲しい</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="deliverable">▸ DELIVERABLE ─ 成果物</div>
+    <h3>項目一覧と画面イメージを作成 <span class="role-tag">私が担当</span></h3>
+    <p>ヒアリング内容を、Excelで<b>項目一覧</b>と<b>画面イメージ</b>に整理。上司・担当部署の部長のレビュー(赤入れ)を受けて、認識を合わせながら固めました。</p>
+  </div>
+
+  <div class="card">
+    <div class="deliverable">▸ ISSUE ─ 一番苦労した点</div>
+    <h3>業種の「分類と見せ方」の定義</h3>
+    <p>業種・サービス・特典が混在し、どう整理して画面で表現するかに苦労しました。業務担当者と何度もすり合わせ、最終的に下記のような表現に統一しました。</p>
+    <div class="tagline">
+      <span class="chip cat">飲食(業種)</span>
+      <span class="chip">飲食サービス</span>
+      <span class="chip">ポイント10アップ(特典)</span>
+    </div>
+    <p style="font-size:13px;color:#777;margin-top:6px;">
+      あわせて、<b>本当に必要な情報だけに絞り、不要な入力項目を省く</b>ことで、現場の入力負担とミスを減らすことも意識しました。
+    </p>
+  </div>
+
+  <!-- STAGE 3: 設計 -->
+  <h2 class="stage-title"><span class="stage-num">3</span> テーブル設計 ─ 正規化でデータを分ける</h2>
+
+  <div class="card">
+    <h3>なぜテーブルを分けたか</h3>
+    <p><span class="hl">1つの法人が複数のサービスを持つ</span>(例:ホテル → 宿泊+レストラン)。1つの表に詰め込むと「サービス1・サービス2…」と列が増え続けて破綻します。そこで、データの種類ごとにテーブルを分けました(正規化)。</p>
+
+    <div class="erd">
+      <div class="tbl">
+        <div class="tbl-head">corporations（法人）</div>
+        <div class="tbl-body">
+          <div class="col"><span>corp_id</span><span class="key">PK</span></div>
+          <div class="col"><span>corp_name 会社名</span><span></span></div>
+          <div class="col"><span>category_id 業種</span><span class="fk">FK</span></div>
+          <div class="col"><span>sales_id 担当営業</span><span class="fk">FK</span></div>
+        </div>
+      </div>
+      <div class="rel"></div>
+      <div class="tbl">
+        <div class="tbl-head">services（サービス）</div>
+        <div class="tbl-body">
+          <div class="col"><span>service_id</span><span class="key">PK</span></div>
+          <div class="col"><span>corp_id 法人</span><span class="fk">FK</span></div>
+          <div class="col"><span>service_name サービス名</span><span></span></div>
+          <div class="col"><span>benefit 特典(ポイント等)</span><span></span></div>
+        </div>
+      </div>
+      <div class="rel"></div>
+      <div class="tbl">
+        <div class="tbl-head">sales_staff（営業職員）/ categories（業種マスタ）</div>
+        <div class="tbl-body">
+          <div class="col"><span>sales_id / category_id</span><span class="key">PK</span></div>
+          <div class="col"><span>担当者名・連絡先 / 業種名</span><span></span></div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:#777;">
+      担当営業や業種を別テーブル(マスタ)にして<b>IDで参照</b>。担当者変更や業種名修正が<b>1か所の更新で済む</b>ようにしました(第3正規形の考え方)。
+    </p>
+  </div>
+
+  <!-- STAGE 4: 実装 -->
+  <h2 class="stage-title"><span class="stage-num">4</span> 実装 ─ クラス設計と共通化</h2>
+
+  <div class="card">
+    <h3>テーブルに対応するクラスを設計</h3>
+    <p>扱うデータごとにクラスを分け、テーブル構造と対応させました。</p>
+    <ul>
+      <li><b>法人クラス / サービスクラス / 営業職員クラス</b> ― 各データと、その取得・更新処理を保持</li>
+      <li>法人1社にサービスが複数紐づくので、<b>サービス側から法人を参照</b>する形に</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>共通処理をまとめる（汎用化）<span class="role-tag">工夫した点</span></h3>
+    <p>どのデータも「DBから検索する・登録する・更新する」という<b>共通の処理</b>があったため、その部分を共通のDB操作クラスにまとめ、各クラスがそれを使う形にしました。</p>
+    <pre><span class="cmt">// 共通のDB操作をまとめた親クラス（イメージ）</span>
+<span class="kw">class</span> BaseDao {
+    <span class="kw">findById</span>(id)  { <span class="cmt">/* 共通の検索処理 */</span> }
+    <span class="kw">insert</span>(data) { <span class="cmt">/* 共通の登録処理 */</span> }
+    <span class="kw">update</span>(data) { <span class="cmt">/* 共通の更新処理 */</span> }
+}
+<span class="cmt">// 各クラスは共通処理を引き継いで使う</span>
+<span class="kw">class</span> CorporationDao <span class="kw">extends</span> BaseDao { ... }
+<span class="kw">class</span> ServiceDao     <span class="kw">extends</span> BaseDao { ... }</pre>
+    <p style="font-size:13px;color:#777;">
+      当初は同じような処理を繰り返し書いていましたが、上司から<b>「繰り返す処理は共通化するように」</b>と指導を受け、保守性を意識した設計に改めました。修正が必要なときも1か所直せば済みます。
+    </p>
+  </div>
+
+  <!-- STAGE 5: 結果 -->
+  <h2 class="stage-title"><span class="stage-num">5</span> 結果 ─ 現場で使われ続けた</h2>
+
+  <div class="result-box">
+    <h3>2年以上、現場で活用</h3>
+    <div class="stat">2年+ <span>継続して使用された</span></div>
+    <ul>
+      <li>統括部長が部門内に活用を呼びかけ、定着した</li>
+      <li>運用後、機能への不満の声は出なかった</li>
+      <li>「現場に本当に必要とされるものを作れた」ことが一番の手応え</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border-left:4px solid var(--gold);">
+    <h3>このプロジェクトでできたこと</h3>
+    <ul>
+      <li><b>要件定義</b>:現場ヒアリングから必要な情報を引き出し、項目・画面イメージに落とせる</li>
+      <li><b>業務理解</b>:業務側の視点で「使う人の負担」まで考えた設計ができる</li>
+      <li><b>テーブル設計・正規化</b>:データの構造に応じて適切にテーブルを分けられる</li>
+      <li><b>実装・保守性</b>:共通化・汎用性を意識したクラス設計</li>
+      <li><b>一気通貫</b>:上流から運用まで、一連の流れを実務で経験</li>
+    </ul>
+  </div>
+
+  </main>
+  <footer>
+    社内DB構築プロジェクト（前職）の記録 · 図・コードは説明用に再構成したものです · 実データは含みません
+  </footer>
+</div>
+</body>
+</html>

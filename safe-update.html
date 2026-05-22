@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>安全を意識したUPDATE業務 ─ SQL スキル ポートフォリオ</title>
+<meta name="description" content="SELECTで影響範囲を確認してからUPDATEを実行する、本番運用の基本手順デモ。SQLite/WASMでブラウザ内動作。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+<link rel="stylesheet" href="css/common.css">
+<link rel="stylesheet" href="css/chat.css">
+<style>
+  .card.before { border-top: 4px solid var(--accent); }
+  .card.after { border-top: 4px solid var(--accent2); }
+  .card .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; }
+  .card .tag-before { color: var(--accent); }
+  .card .tag-after { color: var(--accent2); }
+  table.result td.highlight { background: #d4edda; font-weight: 700; }
+  .wf-step.danger .wf-num { background: var(--accent); }
+  .wf-body .caution { color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">メインコンテンツへ</a>
+<div class="wrap">
+  <nav class="nav-home"><a href="index.html">&larr; SQL スキル ポートフォリオ</a></nav>
+  <header>
+      <div class="kicker">Safe SQL Update · Demo</div>
+    <h1>安全を意識したUPDATE業務</h1>
+    <div class="sub">
+      <span class="badge">DML</span>
+      <span class="badge">SELECT → UPDATE</span>
+      <span class="badge">本番運用の基本動作</span>
+    </div>
+  </header>
+  <main id="main">
+
+      <!-- 上司とのやりとり -->
+      <div class="chat">
+          <div class="chat-row boss">
+              <div class="chat-icon boss">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)" /></svg>
+              </div>
+              <div>
+                  <div class="chat-label">上司</div>
+                  <div class="chat-bubble">
+                      法人部門から依頼がきてる。ある業務ID（情報通信料）の案件を出している法人の名前の先頭に、識別用の文字をつけてほしいって。<br>業務ID 25 の法人名の頭に<b>識別用の『N』を</b>つけておいてくれる？
+                  </div>
+              </div>
+          </div>
+          <div class="chat-row me">
+              <div class="chat-icon me">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.85)" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.85)" /></svg>
+              </div>
+              <div>
+                  <div class="chat-label">わたし</div>
+                  <div class="chat-bubble">
+                      承知しました。まず<b>何件が対象になるか確認</b>してから更新しますね。
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- 業務フロー -->
+      <div class="workflow">
+          <h3>&#9656; 業務の進め方</h3>
+          <div class="wf-steps">
+              <div class="wf-step danger">
+                  <div class="wf-num">!</div>
+                  <div class="wf-body"><span class="caution">いきなり UPDATE で更新しない。</span>本番データを壊すリスクがある。</div>
+              </div>
+              <div class="wf-connector"><div class="wf-line"></div></div>
+              <div class="wf-step">
+                  <div class="wf-num">1</div>
+                  <div class="wf-body">まず <b>SELECT</b> で対象を一覧表示。想定した法人が対象になっているか、<b>件数が想定どおりか</b>を確認する。</div>
+              </div>
+              <div class="wf-connector"><div class="wf-line"></div></div>
+              <div class="wf-step">
+                  <div class="wf-num">2</div>
+                  <div class="wf-body">確認できたら <b>UPDATE</b> を実行して、法人名の先頭に「N」を付加する。</div>
+              </div>
+              <div class="wf-connector"><div class="wf-line"></div></div>
+              <div class="wf-step">
+                  <div class="wf-num">3</div>
+                  <div class="wf-body">更新後も <b>SELECT</b> で確認。正しく反映されたか、Before / After を目視チェックする。</div>
+              </div>
+          </div>
+      </div>
+
+      <div class="status" id="status">&#9203; データベースを初期化しています...</div>
+
+      <h2 class="section-title">&#9656; STEP 1 ─ SELECTで対象を確認する</h2>
+      <div class="controls">
+          <button class="primary" id="btnSelect" disabled>① SELECTで対象を確認</button>
+      </div>
+      <pre><span class="cmt">-- まず、どの行が影響を受けるか確認する</span>
+<span class="kw">SELECT</span> id, business_id, corp_name, rep_name
+<span class="kw">FROM</span> corporation
+<span class="kw">WHERE</span> business_id = <span class="str">25</span>;</pre>
+      <div id="selectResult"></div>
+
+      <h2 class="section-title">&#9656; STEP 2 ─ UPDATEを実行する</h2>
+      <div class="controls">
+          <button class="primary" id="btnUpdate" disabled>② UPDATEを実行</button>
+      </div>
+
+      <pre><span class="cmt">-- トランザクション開始
+-- 更新前に対象確認済み</span>
+
+<span class="kw">BEGIN TRANSACTION</span>;
+
+<span class="kw">UPDATE</span> corporation
+<span class="kw">SET</span> corp_name = <span class="str">'N'</span> || corp_name
+<span class="kw">WHERE</span> business_id = <span class="str">25</span>
+<span class="kw">AND</span> corp_name <span class="kw">NOT LIKE</span> <span class="str">'N%'</span>;
+
+<span class="cmt">-- 確認後に確定</span>
+<span class="kw">COMMIT</span>;
+
+<span class="cmt">-- 問題があれば取り消し</span>
+<span class="cmt">-- ROLLBACK;</span></pre>
+
+      <div id="updateResult"></div>
+
+      <h2 class="section-title">&#9656; STEP 3 ─ 更新結果を確認する（Before / After）</h2>
+      <div class="controls">
+          <button class="primary" id="btnVerify" disabled>③ 更新結果を確認</button>
+          <button id="btnReset" disabled>リセット</button>
+      </div>
+
+      <div class="cards" id="compareArea" style="display:none;">
+          <div class="card before">
+              <span class="tag tag-before">&#9679; BEFORE（更新前）</span>
+              <h3>UPDATE前の状態</h3>
+              <div class="table-wrap" id="beforeTable"></div>
+          </div>
+          <div class="card after">
+              <span class="tag tag-after">&#9679; AFTER（更新後）</span>
+              <h3>UPDATE後の状態</h3>
+              <div class="table-wrap" id="afterTable"></div>
+          </div>
+      </div>
+
+      <div class="verdict" id="verdict"></div>
+
+      <h2 class="section-title">&#9656; 解説</h2>
+      <div class="explain">
+          <h3>なぜSELECTを先に実行するのか</h3>
+          <ul>
+              <li><b>件数の確認</b>:「4件のはずが400件ヒット」→ WHERE句の間違いに気づける。</li>
+              <li><b>内容の確認</b>:対象外のデータが混ざっていないか目視チェックできる。</li>
+              <li><b>全件更新の防止</b>:WHERE句を書き忘れた場合、SELECTなら全件表示されるだけで済む。UPDATEだと全件書き換わって大事故になる。</li>
+              <li><b>トランザクション運用</b>:実務では BEGIN → UPDATE → 結果確認 → COMMIT or ROLLBACK というフローになる。</li>
+          </ul>
+      </div>
+
+      <div class="speaker">
+          <h3>&#9656; メモ</h3>
+          「本番環境でUPDATE文を実行するとき、まずSELECTで同じWHERE句の結果を確認してから実行するようにしていました。件数が想定と違えばWHERE句の間違いに気づけますし、万が一の全件更新事故を防げます。このデモでは業務ID25の法人名を更新する手順を再現しています。」
+      </div>
+
+  </main>
+  <footer>
+    Built with sql.js (SQLite/WASM) · 全処理はブラウザ内で実行 · データはサンプル(自動生成)
+  </footer>
+</div>
+
+<script type="module" src="js/safe-update/controller.js"></script>
+</body>
+</html>

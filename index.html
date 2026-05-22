@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スキル ポートフォリオ</title>
+<meta name="description" content="スキルポートフォリオ｜SQL・AI・AWS・iOSアプリなど、実務と個人開発で培ったスキルをデモと紹介ページで実演。">
+<meta property="og:title" content="スキル ポートフォリオ">
+<meta property="og:description" content="SQL・AI・AWS・iOSなど、実務と個人開発で培ったスキルをデモとプロジェクト紹介で実演するポートフォリオサイト。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://katsuobushija.github.io/portfolio/">
+<link rel="canonical" href="https://katsuobushija.github.io/portfolio/">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/common.css">
+<style>
+  .card {
+    padding: 22px 20px;
+    text-decoration: none;
+    color: var(--ink);
+    display: block;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .card.theme-red { border-top: 4px solid var(--accent); }
+  .card.theme-green { border-top: 4px solid var(--accent2); }
+  .card.theme-gold { border-top: 4px solid var(--gold); }
+  .card .card-kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .card.theme-red .card-kicker { color: var(--accent); }
+  .card.theme-green .card-kicker { color: var(--accent2); }
+  .card.theme-gold .card-kicker { color: var(--gold); }
+  .card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .card p { font-size: 13px; color: #5a5448; margin-bottom: 12px; line-height: 1.6; }
+  .card .badges { margin-bottom: 14px; }
+  .card .badge { font-size: 10px; padding: 2px 8px; }
+  .card .arrow {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent2);
+    letter-spacing: 1px;
+  }
+  .card-qr .card-qr-inner {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .card-qr-text { flex: 1; }
+  .card-qr-code {
+    flex-shrink: 0;
+    text-align: center;
+  }
+  .card-qr-code svg { display: block; }
+  .qr-caption {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #5a5448;
+    margin-top: 6px;
+    letter-spacing: 1px;
+  }
+  @media (max-width: 640px) {
+    .card-qr .card-qr-inner { flex-direction: column; align-items: flex-start; }
+    .card-qr-code { align-self: center; }
+  }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">メインコンテンツへ</a>
+<div class="wrap">
+  <header>
+    <div class="kicker">Skills Portfolio</div>
+    <h1>スキル ポートフォリオ</h1>
+    <div class="sub">
+      実務と個人開発で培ったスキルを、動くデモとプロジェクト紹介で実演します。
+    </div>
+  </header>
+
+  <main id="main">
+
+  <div class="intro">
+    このサイトは、私がこれまでの業務や個人開発で経験してきたスキルを紹介するポートフォリオです。
+    SQLデモは<b>ブラウザ上で実際に動くデモ</b>として再現しています（サーバー不要・SQLite/WASM）。
+    その他のプロジェクトは、使用技術や設計意図を紹介ページにまとめています。
+  </div>
+
+  <h2 class="section-title">&#9656; SQL Demos</h2>
+
+  <div class="cards">
+    <a class="card theme-red" href="db-design.html">
+      <div class="card-kicker">&#9632; Project Case Study</div>
+      <h3>要件定義から実装まで</h3>
+      <p>社内DB構築プロジェクトを題材に、要件定義・テーブル設計・実装・運用までの一連の流れを紹介します。</p>
+      <div class="badges">
+        <span class="badge">要件定義</span>
+        <span class="badge">テーブル設計</span>
+        <span class="badge">正規化</span>
+      </div>
+      <span class="arrow">詳しく見る &gt;</span>
+    </a>
+
+    <a class="card theme-green" href="tuning.html">
+      <div class="card-kicker">&#9632; Data Extract &amp; Export</div>
+      <h3>データ抽出・連携業務</h3>
+      <p>退社する職員のPC情報を抽出・結合し、支社ごとに整理してExcel連携する業務を再現します。</p>
+      <div class="badges">
+        <span class="badge">SELECT</span>
+        <span class="badge">JOIN</span>
+        <span class="badge">GROUP BY</span>
+      </div>
+      <span class="arrow">デモを見る &gt;</span>
+    </a>
+
+    <a class="card theme-gold" href="safe-update.html">
+      <div class="card-kicker">&#9632; Safe Operation</div>
+      <h3>安全を意識したUPDATE業務</h3>
+      <p>本番データを壊さないための基本動作。SELECTで影響範囲を確認してからUPDATEを実行します。</p>
+      <div class="badges">
+        <span class="badge">DML</span>
+        <span class="badge">SELECT &rarr; UPDATE</span>
+        <span class="badge">本番運用</span>
+      </div>
+      <span class="arrow">デモを見る &gt;</span>
+    </a>
+
+    <a class="card theme-red" href="data-diff.html">
+      <div class="card-kicker">&#9632; Data Operations</div>
+      <h3>データ差分の抽出と同期</h3>
+      <p>2つのデータを突き合わせて差分を検出し、整合性チェック後にDBを同期する一連の流れを実演します。</p>
+      <div class="badges">
+        <span class="badge">JOIN</span>
+        <span class="badge">EXCEPT</span>
+        <span class="badge">差分抽出</span>
+      </div>
+      <span class="arrow">デモを見る &gt;</span>
+    </a>
+  </div>
+
+  <h2 class="section-title">&#9656; Other Projects</h2>
+
+  <div class="cards">
+    <a class="card theme-green card-qr" href="https://ohlo.info/" target="_blank" rel="noopener">
+      <div class="card-qr-inner">
+        <div class="card-qr-text">
+          <div class="card-kicker">&#9632; iOS App (Released)</div>
+          <h3>あつめて！算数アイランド</h3>
+          <p>設計書からリリースまで一人で開発した算数RPGアプリ。ログイン・決済・検索・通知などバックエンド機能も実装。</p>
+          <div class="badges">
+            <span class="badge">iOS</span>
+            <span class="badge">リリース済</span>
+          </div>
+          <span class="arrow">公式サイトを見る &gt;</span>
+        </div>
+        <div class="card-qr-code">
+          <div id="qr-ohlo"></div>
+          <div class="qr-caption">スマホでスキャン</div>
+        </div>
+      </div>
+    </a>
+
+    <a class="card theme-red" href="lora-training.html">
+      <div class="card-kicker">&#9632; AI / Machine Learning</div>
+      <h3>AI画像生成 LoRA学習環境</h3>
+      <p>Stable Diffusionモデルのファインチューニング。kohya_ss (sd-scripts) を使ったLoRA学習環境。</p>
+      <div class="badges">
+        <span class="badge">Python</span>
+        <span class="badge">PyTorch</span>
+        <span class="badge">LoRA</span>
+      </div>
+      <span class="arrow">詳しく見る &gt;</span>
+    </a>
+
+    <a class="card theme-gold" href="https://ohlo.info/ai-sound/" target="_blank" rel="noopener">
+      <div class="card-kicker">&#9632; AI + Sound Engine</div>
+      <h3>AI効果音ジェネレーター</h3>
+      <p>テキストからゲーム用8bit効果音を自動生成。Claude APIとRust製サウンドエンジンを組み合わせたツール。</p>
+      <div class="badges">
+        <span class="badge">Rust</span>
+        <span class="badge">TypeScript</span>
+        <span class="badge">Claude API</span>
+      </div>
+      <span class="arrow">詳しく見る &gt;</span>
+    </a>
+
+    <a class="card theme-green" href="auto-journal.html">
+      <div class="card-kicker">&#9632; Serverless / AWS</div>
+      <h3>AI請求書自動仕訳システム</h3>
+      <p>請求書PDFをアップロードするとAIが勘定科目を自動判定。AWS Lambda + Bedrockのサーバーレス構成。</p>
+      <div class="badges">
+        <span class="badge">AWS Lambda</span>
+        <span class="badge">Terraform</span>
+        <span class="badge">Bedrock</span>
+      </div>
+      <span class="arrow">詳しく見る &gt;</span>
+    </a>
+  </div>
+
+  </main>
+
+  <footer>
+    SQLデモはブラウザ内で動作（sql.js / SQLite WASM） &middot;
+    <a href="https://katsuobushija.github.io/portfolio/" style="color:#8a857e;text-decoration:none;">katsuobushija.github.io/portfolio</a>
+  </footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+  var qr = qrcode(0, 'M');
+  qr.addData('https://ohlo.info/');
+  qr.make();
+  document.getElementById('qr-ohlo').innerHTML = qr.createSvgTag({cellSize: 3, margin: 2, scalable: true});
+});
+</script>
+</body>
+</html>

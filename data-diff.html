@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>データ差分の抽出と同期 デモ ─ SQL スキル ポートフォリオ</title>
+<meta name="description" content="2つのデータを突き合わせて差分を検出し、整合性チェック後にDBを同期するデモ。SQLite/WASMでブラウザ内動作。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+<link rel="stylesheet" href="css/common.css">
+<style>
+  .card.current { border-top: 4px solid var(--accent2); }
+  .card.imported { border-top: 4px solid var(--gold); }
+  .card.added { border-top: 4px solid var(--accent2); }
+  .card.deleted { border-top: 4px solid var(--accent); }
+  .card.changed { border-top: 4px solid var(--gold); }
+  .card.error { border-top: 4px solid var(--accent); }
+  .card .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; }
+  .tag-current { color: var(--accent2); }
+  .tag-imported { color: var(--gold); }
+  .tag-added { color: var(--accent2); }
+  .tag-deleted { color: var(--accent); }
+  .tag-changed { color: var(--gold); }
+  .tag-error { color: var(--accent); }
+  table.result td.hl-add { background: #d4edda; }
+  table.result td.hl-del { background: #f8d7da; }
+  table.result td.hl-chg { background: #fff3cd; }
+  table.result td.hl-err { background: #f8d7da; font-weight: 700; }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">メインコンテンツへ</a>
+<div class="wrap">
+  <nav class="nav-home"><a href="index.html">&larr; SQL スキル ポートフォリオ</a></nav>
+  <header>
+    <div class="kicker">Data Operations · Demo</div>
+    <h1>データ差分の抽出と同期デモ</h1>
+    <div class="sub">
+      <span class="badge">JOIN</span>
+      <span class="badge">EXCEPT</span>
+      <span class="badge">NOT IN</span>
+      <span class="badge">差分抽出</span>
+    </div>
+  </header>
+  <main id="main">
+
+      <div class="intro">
+          外部からインポートしたデータと現在のDBを<b>突き合わせて差分を検出</b>し、
+          <b>整合性チェック</b>を経て差分をDBへ反映する ─ これはデータ連携業務の基本フローです。
+          このデモでは機器在庫管理を題材に、JOIN / EXCEPT / NOT IN を使った差分抽出を実演します。
+      </div>
+
+  <div class="status" id="status">&#9203; データベースを初期化しています...</div>
+
+  <!-- STEP 0: データ確認 -->
+  <h2 class="section-title">&#9656; STEP 0 ─ 現在のデータを確認</h2>
+  <div class="cards" id="dataOverview" style="display:none;">
+    <div class="card current">
+      <span class="tag tag-current">&#9679; 現在のDB (inventory_current)</span>
+      <h3>社内在庫データ</h3>
+      <div class="table-wrap" id="tblCurrent"></div>
+    </div>
+    <div class="card imported">
+        <span class="tag tag-imported">&#9679; インポートデータ (inventory_staging)</span>
+      <h3>外部取り込みデータ</h3>
+      <div class="table-wrap" id="tblImported"></div>
+    </div>
+  </div>
+
+  <!-- STEP 1: 新規追加 -->
+  <h2 class="section-title">&#9656; STEP 1 ─ 新規追加データの検出</h2>
+  <div class="controls">
+    <button class="green" id="btnAdded" disabled>① 新規データを検出</button>
+  </div>
+  <pre><span class="cmt">-- インポートにあって現在DBにないもの（新規追加分）</span>
+<span class="kw">SELECT</span> i.*
+<span class="kw">FROM</span> inventory_staging i
+<span class="kw">LEFT JOIN</span> inventory_current c <span class="kw">ON</span> i.item_code = c.item_code
+<span class="kw">WHERE</span> c.item_code <span class="kw">IS NULL</span>;</pre>
+  <div class="step-result" id="addedResult"></div>
+
+  <!-- STEP 2: 削除 -->
+  <h2 class="section-title">&#9656; STEP 2 ─ 削除データの検出</h2>
+  <div class="controls">
+    <button id="btnDeleted" disabled>② 削除データを検出</button>
+  </div>
+  <pre><span class="cmt">-- 現在DBにあってインポートにないもの（削除された分）</span>
+<span class="kw">SELECT</span> item_code, item_name <span class="kw">FROM</span> inventory_current
+<span class="kw">EXCEPT</span>
+<span class="kw">SELECT</span> item_code, item_name <span class="kw">FROM</span> inventory_staging;</pre>
+  <div class="step-result" id="deletedResult"></div>
+
+  <!-- STEP 3: 変更 -->
+  <h2 class="section-title">&#9656; STEP 3 ─ 変更データの検出</h2>
+  <div class="controls">
+    <button class="gold" id="btnChanged" disabled>③ 変更データを検出</button>
+  </div>
+  <pre><span class="cmt">-- 両方に存在するが内容が異なるもの</span>
+<span class="kw">SELECT</span>
+    c.item_code,
+    c.item_name,
+    c.quantity   <span class="kw">AS</span> current_qty,
+    i.quantity   <span class="kw">AS</span> imported_qty,
+    c.location   <span class="kw">AS</span> current_loc,
+    i.location   <span class="kw">AS</span> imported_loc
+<span class="kw">FROM</span> inventory_current c
+<span class="kw">JOIN</span> inventory_staging i <span class="kw">ON</span> c.item_code = i.item_code
+<span class="kw">WHERE</span> c.quantity != i.quantity
+  <span class="kw">OR</span> c.location != i.location;</pre>
+  <div class="step-result" id="changedResult"></div>
+
+  <!-- STEP 4: 整合性チェック -->
+  <h2 class="section-title">&#9656; STEP 4 ─ データ整合性チェック</h2>
+  <div class="controls">
+    <button id="btnCheck" disabled>④ 整合性チェック</button>
+  </div>
+  <pre><span class="cmt">-- インポートデータの品質チェック（NULL・不正値の検出）</span>
+<span class="kw">SELECT</span> item_code, item_name, category, quantity
+<span class="kw">FROM</span> inventory_staging
+<span class="kw">WHERE</span> item_name <span class="kw">IS NULL</span>
+  <span class="kw">OR</span> category <span class="kw">IS NULL</span>
+  <span class="kw">OR</span> quantity <span class="kw">IS NULL</span>
+  <span class="kw">OR</span> quantity &lt; 0;</pre>
+  <div class="step-result" id="checkResult"></div>
+
+  <!-- STEP 5: 同期 -->
+  <h2 class="section-title">&#9656; STEP 5 ─ データベースを同期する</h2>
+  <div class="controls">
+    <button class="primary" id="btnSync" disabled>⑤ DBを同期する</button>
+    <button id="btnReset" disabled>リセット</button>
+  </div>
+  <div class="step-result" id="syncResult"></div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <div class="speaker">
+    <h3>&#9656; メモ</h3>
+    「前職では外部データと社内DBの差分を出して更新する作業を定期的に行っていました。NOT INやLEFT JOINで新規・削除・変更を洗い出し、整合性チェックを通してからUPDATEする手順です。このデモでは機器在庫を例にしていますが、実際にはデータバンクの企業情報の差分抽出なども同じ手法で対応していました。」
+  </div>
+
+  </main>
+  <footer>
+    Built with sql.js (SQLite/WASM) · 全処理はブラウザ内で実行 · データはサンプル(自動生成)
+  </footer>
+</div>
+
+<script type="module" src="js/data-diff/controller.js"></script>
+</body>
+</html>

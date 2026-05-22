@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI請求書自動仕訳システム｜スキル ポートフォリオ</title>
+<meta name="description" content="請求書PDFをアップロードするとAIが勘定科目を自動判定。AWS Lambda + Bedrockのサーバーレス構成で構築した自動仕訳システム。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/common.css">
+</head>
+<body>
+<a href="#main" class="skip-link">メインコンテンツへ</a>
+<div class="wrap">
+  <nav class="nav-home"><a href="index.html">← Portfolio Top</a></nav>
+  <header>
+    <div class="kicker">Serverless / AWS</div>
+    <h1>AI請求書自動仕訳システム</h1>
+    <div class="sub">
+      <span class="badge">AWS Lambda</span>
+      <span class="badge">Terraform</span>
+      <span class="badge">Bedrock</span>
+      請求書PDFからAIが勘定科目を自動判定するサーバーレスシステム。
+    </div>
+  </header>
+
+  <main id="main">
+
+    <div class="intro">
+      経理担当者が手作業で行っていた請求書の仕訳作業を自動化するシステムです。請求書（PDF/Excel）をアップロードすると、<b>Amazon Bedrock（Claude）</b>が内容を読み取り、勘定科目を自動判定します。<b>AWS Lambda</b> を中心としたサーバーレス構成で、インフラ管理不要・低コストで運用できます。
+    </div>
+
+    <h2 class="section-title">▸ 処理フロー</h2>
+    <div class="explain">
+      <ul>
+        <li><b>1. アップロード</b>：Streamlit UIから請求書ファイル（PDF/Excel）をS3へアップロード</li>
+        <li><b>2. AI抽出</b>：S3トリガーでLambdaが起動、Bedrock（Claude Haiku）が請求書の内容を構造化データとして抽出（取引先名・日付・金額・税額・明細）</li>
+        <li><b>3. 勘定科目の判定</b>：抽出データをもとにAIが最適な勘定科目（仕入高・外注費・通信費・消耗品費 等）を推定</li>
+        <li><b>4. 確認・修正</b>：経理担当者がAIの判定結果を確認し、必要に応じて修正・承認</li>
+        <li><b>5. CSV出力</b>：確認済みデータを会計ソフト用のCSVとしてエクスポート</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title">▸ アーキテクチャ</h2>
+<pre>
+Streamlit UI
+    ↓ presigned URL
+Amazon S3（請求書ファイル）
+    ↓ S3 Event Trigger
+AWS Lambda（extract_invoice）
+    ↓
+Amazon Bedrock（Claude Haiku）
+    ↓ 構造化データ
+Amazon DynamoDB（仕訳データ保存）
+    ↓
+API Gateway → Lambda（search / update / export）
+    ↓
+Streamlit UI（確認・修正・CSV出力）
+</pre>
+
+    <h2 class="section-title">▸ 技術スタック</h2>
+    <div class="explain">
+      <ul>
+        <li><b>コンピュート</b>：AWS Lambda（Python 3.12）× 5関数</li>
+        <li><b>AI/ML</b>：Amazon Bedrock（Claude Haiku）─ 請求書内容の抽出と勘定科目推定</li>
+        <li><b>ストレージ</b>：Amazon S3（ファイル保管）+ DynamoDB（仕訳データ、GSI 2本）</li>
+        <li><b>API</b>：API Gateway（REST）</li>
+        <li><b>フロントエンド</b>：Streamlit（Python製Web UI）</li>
+        <li><b>IaC</b>：Terraform（モジュール構成：storage / compute / data / api）</li>
+        <li><b>CI/CD</b>：GitHub Actions（lint + Terraform validate）</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title">▸ 設計のポイント</h2>
+    <div class="explain">
+      <ul>
+        <li><b>LLMによる柔軟な対応</b>：PDF・Excelなど多様なフォーマットの請求書を、ルールベースではなくAIが読み取るため、新しいフォーマットにもコード変更なしで対応</li>
+        <li><b>サーバーレス構成</b>：EC2のような常時稼働サーバーが不要。月額¥700〜2,000程度（500件処理時）の低コスト運用</li>
+        <li><b>人による確認・承認フロー</b>：AIの判定を経理担当者が確認・修正する仕組みで、精度と信頼性を両立</li>
+        <li><b>Terraform による再現性</b>：インフラ全体をコードで管理し、環境の再構築・移行が容易</li>
+      </ul>
+    </div>
+
+  </main>
+
+  <footer>
+    AWS Lambda + Amazon Bedrock + DynamoDB + Terraform
+  </footer>
+</div>
+</body>
+</html>
